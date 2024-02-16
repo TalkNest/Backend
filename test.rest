@@ -1,0 +1,29 @@
+### Create a new user
+POST http://localhost:8383/user
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "username": "user123",
+  "profilePicture": "http://example.com/profile.jpg",
+  "bio": "This is a bio",
+  "location": "Location Name"
+}
+
+### Fetch a user by ID
+# Replace `USER_ID` with the actual user ID returned by the create operation
+GET http://localhost:8383/user/rNOCLh71zjN6icHP9nae
+
+### Update a user's information
+# Replace `USER_ID` with the actual user ID
+PATCH http://localhost:8383/user/rNOCLh71zjN6icHP9nae
+Content-Type: application/json
+
+{
+  "bio": "Updated bio",
+  "location": "Updated Location"
+}
+
+### Delete a user
+# Replace `USER_ID` with the actual user ID
+DELETE http://localhost:8383/user/rNOCLh71zjN6icHP9nae
