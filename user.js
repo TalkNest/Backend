@@ -1,8 +1,10 @@
 const express = require('express');
+const cors = require('cors'); // Import CORS package
 const { db } = require('./firebase.js');
 const app = express();
-const port = 8383;
+const port = process.env.PORT || 8383;
 
+app.use(cors()); // Enable CORS for all routes
 app.use(express.json());
 
 // Create a new user
