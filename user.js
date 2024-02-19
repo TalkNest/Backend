@@ -3,31 +3,47 @@ const cors = require('cors'); // Import CORS package
 const { db } = require('./firebase.js');
 const app = express();
 const port = process.env.PORT || 8383;
+const bodyParser = require('body-parser');
 
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json());
+app.use(bodyParser.json());
 
-// Create a new user
-app.post('/user', async (req, res) => {
-    const { email, username, profilePicture, bio, location } = req.body;
-    const createdAt = new Date();
-    const updatedAt = createdAt; // Initially, createdAt and updatedAt will be the same
+// Register New User
+app.post('/api/users', async (req, res) => {
+    try {
+        const { userId, email, username, profilePicture, bio, location } = req.body;
 
-    // Generate a new user ID
-    const userRef = db.collection('users').doc();
-    await userRef.set({
-        userId: userRef.id, // Firebase automatically generates the ID
-        email,
-        username,
-        profilePicture,
-        bio,
-        location,
-        createdAt,
-        updatedAt,
-        chats: []
-    });
+        // Ensure all required fields are provided
+        if (!userId || !username) {
+            return res.status(400).json({ message: 'Missing required fields' });
+        }
 
-    res.status(201).send({ userId: userRef.id });
+        const createdAt = new Date();
+        const updatedAt = createdAt; // For registration, createdAt and updatedAt will be the same
+
+        // Create the user document in Firestore
+        await db.collection('users').doc(userId).set({
+            userId,
+            email,
+            username,
+            profilePicture,
+            bio,
+            location,
+            createdAt,
+            updatedAt,
+            chats: [] // Initialize with an empty array
+        });
+
+        res.status(201).json({
+            createdAt,
+            updatedAt,
+            message: 'User profile created successfully.'
+        });
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ message: 'Failed to register user' });
+    }
 });
 
 // Fetch a user by ID
