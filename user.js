@@ -91,4 +91,41 @@ app.delete('/user/:id', authenticate, async (req, res) => {
   res.sendStatus(204);
 });
 
+app.get('/api/users/search', async (req, res) => {
+  const query = req.query.query.toLowerCase();
+
+  if (!query) {
+    return res.status(400).json({ error: "Missing 'query' parameter." });
+  }
+
+  try {
+    const usersRef = db.collection('users');
+    let snapshot = await usersRef.get();
+    let users = [];
+
+    snapshot.forEach(doc => {
+      let userData = doc.data();
+      // Convert searchable fields to lowercase before matching
+      if (userData.email?.toLowerCase().includes(query) ||
+        userData.username.toLowerCase().includes(query) ||
+        userData.userId.includes(query)) { // Assuming userId is case-sensitive and exact
+        users.push({
+          userId: doc.id,
+          username: userData.username,
+          profilePicture: userData.profilePicture
+        });
+      }
+    });
+
+    if (users.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ error: "An unexpected error occurred. Please try again later." });
+  }
+});
+
 app.listen(port, () => console.log(`Server has started on port: ${port}`));
