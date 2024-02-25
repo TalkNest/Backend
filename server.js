@@ -75,7 +75,7 @@ app.get('/api/user/:id', async (req, res) => {
 });
 
 // Update a user's information
-app.patch('/user/:id', authenticate, async (req, res) => {
+app.patch('/api/user/:id', authenticate, async (req, res) => {
   const {id} = req.params;
   const updates = req.body;
   updates.updatedAt = new Date(); // Update the 'updatedAt' timestamp
@@ -85,13 +85,13 @@ app.patch('/user/:id', authenticate, async (req, res) => {
 });
 
 // Delete a user
-app.delete('/user/:id', authenticate, async (req, res) => {
+app.delete('/api/user/:id', authenticate, async (req, res) => {
   const {id} = req.params;
   await db.collection('users').doc(id).delete();
   res.sendStatus(204);
 });
 
-app.get('/api/users/search', async (req, res) => {
+app.get('/api/users/search', authenticate, async (req, res) => {
   const query = req.query.query.toLowerCase();
 
   if (!query) {
