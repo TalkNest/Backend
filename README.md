@@ -28,5 +28,5 @@ Before running the project, ensure you have Node.js and npm installed. Follow th
 ## Usage
 To run the project, use the following command:
    ```bash
-   npm start
+   node server.js
    ```
