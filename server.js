@@ -4,7 +4,7 @@ const {db} = require('./firebase.js');
 const app = express();
 const port = process.env.PORT || 8383;
 const bodyParser = require('body-parser');
-
+const admin = require('firebase-admin');
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json());
 app.use(bodyParser.json());
@@ -30,10 +30,10 @@ const authenticate = async (req, res, next) => {
 // Register New User
 app.post('/api/users', async (req, res) => {
   try {
-    const {userId, email, username, profilePicture, bio, location} = req.body;
+    const {uid, email, displayName, photoURL, bio, location} = req.body;
 
     // Ensure all required fields are provided
-    if (!userId || !username) {
+    if (!uid || !displayName) {
       return res.status(400).json({message: 'Missing required fields'});
     }
 
@@ -41,11 +41,11 @@ app.post('/api/users', async (req, res) => {
     const updatedAt = createdAt; // For registration, createdAt and updatedAt will be the same
 
     // Create the user document in Firestore
-    await db.collection('users').doc(userId).set({
-      userId,
+    await db.collection('users').doc(uid).set({
+      uid,
       email,
-      username,
-      profilePicture,
+      displayName,
+      photoURL,
       bio,
       location,
       createdAt,
@@ -91,7 +91,7 @@ app.delete('/api/user/:id', authenticate, async (req, res) => {
   res.sendStatus(204);
 });
 
-app.get('/api/users/search', authenticate, async (req, res) => {
+app.get('/api/users/search', async (req, res) => {
   const query = req.query.query.toLowerCase();
 
   if (!query) {
@@ -107,12 +107,12 @@ app.get('/api/users/search', authenticate, async (req, res) => {
       let userData = doc.data();
       // Convert searchable fields to lowercase before matching
       if (userData.email?.toLowerCase().includes(query) ||
-        userData.username.toLowerCase().includes(query) ||
-        userData.userId.includes(query)) { // Assuming userId is case-sensitive and exact
+        userData.displayName.toLowerCase().includes(query) ||
+        userData.uid.includes(query)) { // Assuming userId is case-sensitive and exact
         users.push({
-          userId: doc.id,
-          username: userData.username,
-          profilePicture: userData.profilePicture
+          uid: doc.id,
+          displayName: userData.username,
+          photoURL: userData.profilePicture
         });
       }
     });
@@ -125,6 +125,68 @@ app.get('/api/users/search', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error searching users:', error);
     res.status(500).json({ error: "An unexpected error occurred. Please try again later." });
+  }
+});
+
+///////////////////// Chat /////////////////////
+app.post('/api/chats/select', async (req, res) => {
+  const { currentUserUid, userUid } = req.body; // Extract user IDs from request body
+
+  // Combine user IDs to create a unique identifier for the chat
+  const combinedId = currentUserUid > userUid ? currentUserUid + userUid : userUid + currentUserUid;
+
+  try {
+    const chatRef = db.collection('chats').doc(combinedId);
+    const chatSnap = await chatRef.get();
+
+    if (!chatSnap.exists) {
+      // If chat does not exist, create a new chat document
+      await chatRef.set({ messages: [] });
+
+      // Update userChats collection for currentUser
+      await db.collection('userChats').doc(currentUserUid).set({
+        [`${combinedId}.userInfo`]: { uid: userUid, displayName: 'User Display Name', photoURL: 'User Photo URL' },
+        [`${combinedId}.date`]: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      // Update userChats collection for the other user
+      await db.collection('userChats').doc(userUid).set({
+        [`${combinedId}.userInfo`]: { uid: currentUserUid, displayName: 'Current User Display Name', photoURL: 'Current User Photo URL' },
+        [`${combinedId}.date`]: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    res.json({ message: 'Chat selected or created successfully' });
+  } catch (error) {
+    console.error('Error selecting or creating chat: ', error);
+    res.status(500).send('Error selecting or creating chat');
+  }
+});
+
+// API to get chats for a user
+app.get('/api/chats/:userId', async (req, res) => {
+  try {
+    const userChatsRef = db.collection('userChats').doc(req.params.userId);
+    const doc = await userChatsRef.get();
+    if (!doc.exists) {
+      return res.status(200).json([]); // Return an empty array instead of sending a 404 error
+    }
+    return res.status(200).json(doc.data());
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// API to update or create a chat
+app.post('/api/chats/:userId', async (req, res) => {
+  const { chatId, chatData } = req.body;
+  try {
+    await db.collection('userChats').doc(req.params.userId).set({
+      [chatId]: chatData
+    }, { merge: true });
+    return res.status(200).send('Chat updated successfully.');
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
