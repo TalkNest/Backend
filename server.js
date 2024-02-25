@@ -111,8 +111,8 @@ app.get('/api/users/search', async (req, res) => {
         userData.uid.includes(query)) { // Assuming userId is case-sensitive and exact
         users.push({
           uid: doc.id,
-          displayName: userData.username,
-          photoURL: userData.profilePicture
+          displayName: userData.displayName,
+          photoURL: userData.photoURL
         });
       }
     });
