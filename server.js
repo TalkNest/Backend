@@ -27,6 +27,11 @@ const authenticate = async (req, res, next) => {
   }
 };
 
+// Add a root route handler
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
+
 // Register New User
 app.post('/api/users', async (req, res) => {
   try {
