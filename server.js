@@ -1,10 +1,21 @@
 const express = require('express');
 const cors = require('cors'); // Import CORS package
-const {db} = require('./firebase.js');
+const {db, realTimeDatabase} = require('./firebase.js');
 const app = express();
 const port = process.env.PORT || 8383;
 const bodyParser = require('body-parser');
 const admin = require('firebase-admin');
+const http = require('http');
+const socketio = require('socket.io');
+
+const server = http.createServer(app);
+const io = socketio(server, {
+  cors: {
+    origin: "*", // Allow all origins
+    methods: ["GET", "POST"] // Allow only GET and POST requests
+  }
+});
+
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json());
 app.use(bodyParser.json());
@@ -195,4 +206,82 @@ app.post('/api/chats/:userId', async (req, res) => {
   }
 });
 
-app.listen(port, () => console.log(`Server has started on port: ${port}`));
+/////////////////////////////// Video WebRTC, Socket.io Server ///////////////////////////////
+// Store users' connections
+let users = {};
+io.on('connection', socket => {
+  console.log('New client connected');
+
+  socket.on('register', ({ userId }) => {
+    users[socket.id] = userId;
+    // Set user online status in Firebase
+    const usersRef = realTimeDatabase.ref('users');
+    usersRef.child(userId).set({ online: true, socketId: socket.id });
+    console.log(`User ${userId} connected with socket ID ${socket.id}`);
+  });
+
+  socket.on('disconnect', () => {
+    const userId = users[socket.id];
+    if (userId) {
+      // Optionally update the user's status to offline or remove the user
+      const usersRef = realTimeDatabase.ref('users');
+      usersRef.child(userId).remove(); // Or update to set online status to false
+      console.log(`User ${userId} disconnected`);
+    }
+    delete users[socket.id];
+  });
+
+
+  socket.on('callUser', ({ userToCall, signalData, from }) => {
+    const usersRef = realTimeDatabase.ref('users');
+    usersRef.child(userToCall).get().then((snapshot) => {
+      if (snapshot.exists()) {
+        const receiverData = snapshot.val();
+        if (receiverData.online) {
+          console.log(`Calling user: ${userToCall} (Socket ID: ${receiverData.socketId}) from user: ${from}`);
+          // Use receiver's socketId from the database to emit the call
+          io.to(receiverData.socketId).emit('callUser', { signal: signalData, from, name: from });
+        } else {
+          console.log(`User ${userToCall} is not online.`);
+        }
+      } else {
+        console.log(`User ${userToCall} does not exist.`);
+      }
+    }).catch((error) => {
+      console.error(error);
+    });
+
+    usersRef.child(from).get().then((snapshot) => {
+      if (!snapshot.exists() || !snapshot.val().online) {
+        console.log(`Caller ${from} not found or not connected.`);
+      }
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+
+  socket.on('answerCall', (data) => {
+    const { signal, to } = data; // 'to' is the caller's userId
+
+    // Fetch the caller's socketId from the database
+    const usersRef = realTimeDatabase.ref('users');
+    usersRef.child(to).get().then((snapshot) => {
+      if (snapshot.exists()) {
+        const callerData = snapshot.val();
+        if (callerData.online) {
+          console.log(`Notifying the caller with userId: ${to} at socketId: ${callerData.socketId}`);
+          io.to(callerData.socketId).emit('callAccepted', signal);
+        } else {
+          console.log(`Caller userId: ${to} is not online.`);
+        }
+      } else {
+        console.log(`Caller userId: ${to} does not exist.`);
+      }
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+
+});
+
+server.listen(port, () => console.log(`Server is running on port ${port}`));
