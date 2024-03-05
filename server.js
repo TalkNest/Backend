@@ -111,7 +111,7 @@ app.get('/api/users/search', async (req, res) => {
   const query = req.query.query.toLowerCase();
 
   if (!query) {
-    return res.status(400).json({ error: "Missing 'query' parameter." });
+    return res.status(400).json({error: "Missing 'query' parameter."});
   }
 
   try {
@@ -140,13 +140,13 @@ app.get('/api/users/search', async (req, res) => {
     res.status(200).json(users);
   } catch (error) {
     console.error('Error searching users:', error);
-    res.status(500).json({ error: "An unexpected error occurred. Please try again later." });
+    res.status(500).json({error: "An unexpected error occurred. Please try again later."});
   }
 });
 
 ///////////////////// Chat /////////////////////
 app.post('/api/chats/select', async (req, res) => {
-  const { currentUserUid, userUid } = req.body; // Extract user IDs from request body
+  const {currentUserUid, userUid} = req.body; // Extract user IDs from request body
 
   // Combine user IDs to create a unique identifier for the chat
   const combinedId = currentUserUid > userUid ? currentUserUid + userUid : userUid + currentUserUid;
@@ -157,22 +157,26 @@ app.post('/api/chats/select', async (req, res) => {
 
     if (!chatSnap.exists) {
       // If chat does not exist, create a new chat document
-      await chatRef.set({ messages: [] });
+      await chatRef.set({messages: []});
 
       // Update userChats collection for currentUser
       await db.collection('userChats').doc(currentUserUid).set({
-        [`${combinedId}.userInfo`]: { uid: userUid, displayName: 'User Display Name', photoURL: 'User Photo URL' },
+        [`${combinedId}.userInfo`]: {uid: userUid, displayName: 'User Display Name', photoURL: 'User Photo URL'},
         [`${combinedId}.date`]: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
+      }, {merge: true});
 
       // Update userChats collection for the other user
       await db.collection('userChats').doc(userUid).set({
-        [`${combinedId}.userInfo`]: { uid: currentUserUid, displayName: 'Current User Display Name', photoURL: 'Current User Photo URL' },
+        [`${combinedId}.userInfo`]: {
+          uid: currentUserUid,
+          displayName: 'Current User Display Name',
+          photoURL: 'Current User Photo URL'
+        },
         [`${combinedId}.date`]: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
+      }, {merge: true});
     }
 
-    res.json({ message: 'Chat selected or created successfully' });
+    res.json({message: 'Chat selected or created successfully'});
   } catch (error) {
     console.error('Error selecting or creating chat: ', error);
     res.status(500).send('Error selecting or creating chat');
@@ -189,20 +193,20 @@ app.get('/api/chats/:userId', async (req, res) => {
     }
     return res.status(200).json(doc.data());
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({error: error.message});
   }
 });
 
 // API to update or create a chat
 app.post('/api/chats/:userId', async (req, res) => {
-  const { chatId, chatData } = req.body;
+  const {chatId, chatData} = req.body;
   try {
     await db.collection('userChats').doc(req.params.userId).set({
       [chatId]: chatData
-    }, { merge: true });
+    }, {merge: true});
     return res.status(200).send('Chat updated successfully.');
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({error: error.message});
   }
 });
 
@@ -212,11 +216,11 @@ let users = {};
 io.on('connection', socket => {
   console.log('New client connected');
 
-  socket.on('register', ({ userId }) => {
+  socket.on('register', ({userId}) => {
     users[socket.id] = userId;
     // Set user online status in Firebase
     const usersRef = realTimeDatabase.ref('users');
-    usersRef.child(userId).set({ online: true, socketId: socket.id });
+    usersRef.child(userId).set({online: true, socketId: socket.id});
     console.log(`User ${userId} connected with socket ID ${socket.id}`);
   });
 
@@ -232,7 +236,7 @@ io.on('connection', socket => {
   });
 
 
-  socket.on('callUser', ({ userToCall, signalData, from }) => {
+  socket.on('callUser', ({userToCall, signalData, from}) => {
     const usersRef = realTimeDatabase.ref('users');
     usersRef.child(userToCall).get().then((snapshot) => {
       if (snapshot.exists()) {
@@ -240,7 +244,7 @@ io.on('connection', socket => {
         if (receiverData.online) {
           console.log(`Calling user: ${userToCall} (Socket ID: ${receiverData.socketId}) from user: ${from}`);
           // Use receiver's socketId from the database to emit the call
-          io.to(receiverData.socketId).emit('callUser', { signal: signalData, from, name: from });
+          io.to(receiverData.socketId).emit('callUser', {signal: signalData, from, name: from});
         } else {
           console.log(`User ${userToCall} is not online.`);
         }
@@ -261,7 +265,7 @@ io.on('connection', socket => {
   });
 
   socket.on('answerCall', (data) => {
-    const { signal, to } = data; // 'to' is the caller's userId
+    const {signal, to} = data; // 'to' is the caller's userId
 
     // Fetch the caller's socketId from the database
     const usersRef = realTimeDatabase.ref('users');
@@ -276,6 +280,21 @@ io.on('connection', socket => {
         }
       } else {
         console.log(`Caller userId: ${to} does not exist.`);
+      }
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+
+  socket.on('hangUp', ({to}) => {
+    const usersRef = realTimeDatabase.ref('users');
+    usersRef.child(to).get().then((snapshot) => {
+      if (snapshot.exists()) {
+        const receiverData = snapshot.val();
+        if (receiverData.online) {
+          console.log(`Hanging up call with user: ${to} (Socket ID: ${receiverData.socketId})`);
+          io.to(receiverData.socketId).emit('hangUp');
+        }
       }
     }).catch((error) => {
       console.error(error);
