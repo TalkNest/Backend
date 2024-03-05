@@ -3,6 +3,22 @@
 ## Introduction
 This project is a Node.js backend application that uses Firebase, specifically Firestore, for database operations. It demonstrates basic CRUD operations for user management.
 
+## Technologies Used
+
+- **React.js**: A JavaScript library for building user interfaces, used for structuring the frontend.
+- **Socket.io-client**: Enables real-time, bidirectional communication between web clients and servers.
+- **Simple-peer**: A simple WebRTC peer-to-peer communication library.
+- **Firebase**: Utilized for authentication and real-time database operations.
+- **Material-UI**: A popular React UI framework that provides ready-to-use components.
+
+## Features
+
+- Real-time text messaging.
+- Video and audio calls with WebRTC.
+- User authentication and profile management.
+- Search functionality for users.
+- Responsive design for a seamless experience on various devices.
+
 ## Setup
 Before running the project, ensure you have Node.js and npm installed. Follow these steps to set up the project:
 
