@@ -21,7 +21,7 @@ jobs:
     - name: Run tests
       run: npm test
       env:
-        FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
 
   deploy:
     needs: build-and-test
