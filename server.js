@@ -305,5 +305,21 @@ io.on('connection', socket => {
 
 server.listen(port, () => console.log(`Server is running on port ${port}`));
 
-// Export both app and server for testing and external use
-module.exports = { app };
+// Function to gracefully close the server and cleanup resources
+function closeApp() {
+  return new Promise((resolve, reject) => {
+    server.close((err) => {
+      if (err) {
+        console.error('Failed to close the server', err);
+        reject(err);
+        return;
+      }
+      // Optional: Add any cleanup logic for Firebase or other services here
+      console.log('Server closed');
+      resolve();
+    });
+  });
+}
+
+// Exporting the closeApp function along with the app
+module.exports = { app, closeApp };

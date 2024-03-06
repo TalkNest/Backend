@@ -1,7 +1,13 @@
 const request = require('supertest');
-const { app } = require('./server'); // Adjust the path according to your project structure
+const { app, closeApp} = require('./server'); // Adjust the path according to your project structure
+require('dotenv').config();
 
 describe('API Endpoints', () => {
+  afterAll(async () => {
+    // Call the function to close your app or server and ensure all connections are closed
+    await closeApp();
+  });
+
   it('GET / should return Hello World', async () => {
     const res = await request(app).get('/');
     expect(res.statusCode).toEqual(200);
