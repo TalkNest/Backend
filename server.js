@@ -304,3 +304,6 @@ io.on('connection', socket => {
 });
 
 server.listen(port, () => console.log(`Server is running on port ${port}`));
+
+// Export both app and server for testing and external use
+module.exports = { app };
